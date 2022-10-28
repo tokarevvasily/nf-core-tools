@@ -55,7 +55,10 @@ class RemoteProgressbar(git.RemoteProgress):
         if not self.progress_bar.tasks[self.tid].started:
             self.progress_bar.start_task(self.tid)
         self.progress_bar.update(
-            self.tid, total=max_count, completed=cur_count, state=f"{cur_count / max_count * 100:.1f}%"
+            self.tid,
+            total=max_count,
+            completed=cur_count,
+            state=f"{cur_count / max_count * 100:.1f}%",
         )
 
 
@@ -102,7 +105,9 @@ class ModulesRepo(object):
         try:
             unparsed_branches = git.Git().ls_remote(remote_url)
         except git.GitCommandError:
-            raise LookupError(f"Was unable to fetch branches from '{remote_url}'")
+            raise LookupError(
+                f"Was unable to fetch branches from '{remote_url}'"
+            )
         else:
             branches = {}
             for branch_info in unparsed_branches.split("\n"):
@@ -113,7 +118,14 @@ class ModulesRepo(object):
                     branches[sha] = branch_name
             return set(branches.values())
 
-    def __init__(self, remote_url=None, branch=None, no_pull=False, hide_progress=False):
+    def __init__(
+        self,
+        remote_url=None,
+        branch=None,
+        no_pull=False,
+        subdirectory="nf-core",
+        hide_progress=False,
+    ):
         """
         Initializes the object and clones the git repository if it is not already present
         """
@@ -127,21 +139,33 @@ class ModulesRepo(object):
 
         self.remote_url = remote_url
 
-        self.repo_path = nf_core.modules.module_utils.path_from_remote(self.remote_url)
-        self.fullname = nf_core.modules.module_utils.repo_full_name_from_remote(self.remote_url)
+        self.repo_path = (
+            subdirectory
+            if subdirectory != NF_CORE_MODULES_NAME
+            else nf_core.modules.module_utils.path_from_remote(self.remote_url)
+        )
+        self.fullname = (
+            nf_core.modules.module_utils.repo_full_name_from_remote(
+                self.remote_url
+            )
+        )
 
-        self.setup_local_repo(remote_url, branch, hide_progress)
+        self.setup_local_repo(remote_url, branch, subdirectory, hide_progress)
 
         # Verify that the repo seems to be correctly configured
         if self.repo_path != NF_CORE_MODULES_NAME or self.branch:
             self.verify_branch()
 
         # Convenience variable
-        self.modules_dir = os.path.join(self.local_repo_dir, "modules", self.repo_path)
+        self.modules_dir = os.path.join(
+            self.local_repo_dir, "modules", self.repo_path
+        )
 
         self.avail_module_names = None
 
-    def setup_local_repo(self, remote, branch, hide_progress=True):
+    def setup_local_repo(
+        self, remote, branch, subdirectory, hide_progress=True
+    ):
         """
         Sets up the local git repository. If the repository has been cloned previously, it
         returns a git.Repo object of that clone. Otherwise it tries to clone the repository from
@@ -161,17 +185,22 @@ class ModulesRepo(object):
                         rich.progress.BarColumn(bar_width=None),
                         "[bold yellow]{task.fields[state]}",
                         transient=True,
-                        disable=hide_progress or os.environ.get("HIDE_PROGRESS", None) is not None,
+                        disable=hide_progress
+                        or os.environ.get("HIDE_PROGRESS", None) is not None,
                     )
                     with pbar:
                         self.repo = git.Repo.clone_from(
                             remote,
                             self.local_repo_dir,
-                            progress=RemoteProgressbar(pbar, self.fullname, self.remote_url, "Cloning"),
+                            progress=RemoteProgressbar(
+                                pbar, self.fullname, self.remote_url, "Cloning"
+                            ),
                         )
                     ModulesRepo.update_local_repo_status(self.fullname, True)
                 except GitCommandError:
-                    raise LookupError(f"Failed to clone from the remote: `{remote}`")
+                    raise LookupError(
+                        f"Failed to clone from the remote: `{remote}`"
+                    )
                 # Verify that the requested branch exists by checking it out
                 self.setup_branch(branch)
             else:
@@ -186,11 +215,14 @@ class ModulesRepo(object):
                         rich.progress.BarColumn(bar_width=None),
                         "[bold yellow]{task.fields[state]}",
                         transient=True,
-                        disable=hide_progress or os.environ.get("HIDE_PROGRESS", None) is not None,
+                        disable=hide_progress
+                        or os.environ.get("HIDE_PROGRESS", None) is not None,
                     )
                     with pbar:
                         self.repo.remotes.origin.fetch(
-                            progress=RemoteProgressbar(pbar, self.fullname, self.remote_url, "Pulling")
+                            progress=RemoteProgressbar(
+                                pbar, self.fullname, self.remote_url, "Pulling"
+                            )
                         )
                     ModulesRepo.update_local_repo_status(self.fullname, True)
 
@@ -201,16 +233,24 @@ class ModulesRepo(object):
                 # Now merge the changes
                 tracking_branch = self.repo.active_branch.tracking_branch()
                 if tracking_branch is None:
-                    raise LookupError(f"There is no remote tracking branch '{self.branch}' in '{self.remote_url}'")
+                    raise LookupError(
+                        f"There is no remote tracking branch '{self.branch}' in '{self.remote_url}'"
+                    )
                 self.repo.git.merge(tracking_branch.name)
         except (GitCommandError, InvalidGitRepositoryError) as e:
-            log.error(f"[red]Could not set up local cache of modules repository:[/]\n{e}\n")
-            if rich.prompt.Confirm.ask(f"[violet]Delete local cache '{self.local_repo_dir}' and try again?"):
+            log.error(
+                f"[red]Could not set up local cache of modules repository:[/]\n{e}\n"
+            )
+            if rich.prompt.Confirm.ask(
+                f"[violet]Delete local cache '{self.local_repo_dir}' and try again?"
+            ):
                 log.info(f"Removing '{self.local_repo_dir}'")
                 shutil.rmtree(self.local_repo_dir)
-                self.setup_local_repo(remote, branch, hide_progress)
+                self.setup_local_repo(remote, branch, subdirectory, hide_progress)
             else:
-                raise LookupError("Exiting due to error with local modules git repo")
+                raise LookupError(
+                    "Exiting due to error with local modules git repo"
+                )
 
     def setup_branch(self, branch):
         """
@@ -236,7 +276,9 @@ class ModulesRepo(object):
         """
         Gets the default branch for the repo (the branch origin/HEAD is pointing to)
         """
-        origin_head = next(ref for ref in self.repo.refs if ref.name == "origin/HEAD")
+        origin_head = next(
+            ref for ref in self.repo.refs if ref.name == "origin/HEAD"
+        )
         _, branch = origin_head.ref.name.split("/")
         return branch
 
@@ -247,7 +289,9 @@ class ModulesRepo(object):
         try:
             self.checkout_branch()
         except GitCommandError:
-            raise LookupError(f"Branch '{self.branch}' not found in '{self.remote_url}'")
+            raise LookupError(
+                f"Branch '{self.branch}' not found in '{self.remote_url}'"
+            )
 
     def verify_branch(self):
         """
@@ -257,9 +301,7 @@ class ModulesRepo(object):
         if "modules" not in dir_names:
             err_str = f"Repository '{self.remote_url}' ({self.branch}) does not contain the 'modules/' directory"
             if "software" in dir_names:
-                err_str += (
-                    ".\nAs of nf-core/tools version 2.0, the 'software/' directory should be renamed to 'modules/'"
-                )
+                err_str += ".\nAs of nf-core/tools version 2.0, the 'software/' directory should be renamed to 'modules/'"
             raise LookupError(err_str)
 
     def checkout_branch(self):
@@ -321,11 +363,15 @@ class ModulesRepo(object):
 
         # Check if the module exists in the branch
         if not self.module_exists(module_name, checkout=False):
-            log.error(f"The requested module does not exists in the branch '{self.branch}' of {self.remote_url}'")
+            log.error(
+                f"The requested module does not exists in the branch '{self.branch}' of {self.remote_url}'"
+            )
             return False
 
         # Copy the files from the repo to the install folder
-        shutil.copytree(self.get_module_dir(module_name), Path(install_dir, module_name))
+        shutil.copytree(
+            self.get_module_dir(module_name), Path(install_dir, module_name)
+        )
 
         # Switch back to the tip of the branch
         self.checkout_branch()
@@ -350,14 +396,21 @@ class ModulesRepo(object):
         files_identical = {file: True for file in module_files}
         for file in module_files:
             try:
-                files_identical[file] = filecmp.cmp(os.path.join(module_dir, file), os.path.join(base_path, file))
+                files_identical[file] = filecmp.cmp(
+                    os.path.join(module_dir, file),
+                    os.path.join(base_path, file),
+                )
             except FileNotFoundError:
-                log.debug(f"Could not open file: {os.path.join(module_dir, file)}")
+                log.debug(
+                    f"Could not open file: {os.path.join(module_dir, file)}"
+                )
                 continue
         self.checkout_branch()
         return files_identical
 
-    def get_module_git_log(self, module_name, depth=None, since="2021-07-07T00:00:00Z"):
+    def get_module_git_log(
+        self, module_name, depth=None, since="2021-07-07T00:00:00Z"
+    ):
         """
         Fetches the commit history the of requested module since a given date. The default value is
         not arbitrary - it is the last time the structure of the nf-core/modules repository was had an
@@ -376,14 +429,22 @@ class ModulesRepo(object):
         self.checkout_branch()
         module_path = os.path.join("modules", self.repo_path, module_name)
         commits = self.repo.iter_commits(max_count=depth, paths=module_path)
-        commits = ({"git_sha": commit.hexsha, "trunc_message": commit.message.partition("\n")[0]} for commit in commits)
+        commits = (
+            {
+                "git_sha": commit.hexsha,
+                "trunc_message": commit.message.partition("\n")[0],
+            }
+            for commit in commits
+        )
         return commits
 
     def get_latest_module_version(self, module_name):
         """
         Returns the latest commit in the repository
         """
-        return list(self.get_module_git_log(module_name, depth=1))[0]["git_sha"]
+        return list(self.get_module_git_log(module_name, depth=1))[0][
+            "git_sha"
+        ]
 
     def sha_exists_on_branch(self, sha):
         """
@@ -410,7 +471,9 @@ class ModulesRepo(object):
                 date_obj = commit.committed_datetime
                 date = str(date_obj.date())
                 return message, date
-        raise LookupError(f"Commit '{sha}' not found in the '{self.remote_url}'")
+        raise LookupError(
+            f"Commit '{sha}' not found in the '{self.remote_url}'"
+        )
 
     def get_avail_modules(self, checkout=True):
         """

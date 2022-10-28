@@ -265,7 +265,7 @@ class ModulesJson:
                         break
                     # Create a new modules repo with the selected branch, and retry find the sha
                     modules_repo = nf_core.modules.modules_repo.ModulesRepo(
-                        remote_url=remote_url, branch=branch, no_pull=True, hide_progress=True
+                        remote_url=remote_url, branch=branch, no_pull=True, subdirectory=install_dir, hide_progress=True
                     )
                 else:
                     found_sha = True

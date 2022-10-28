@@ -71,9 +71,17 @@ class ModuleLint(ModuleCommand):
         remote_url=None,
         branch=None,
         no_pull=False,
+        subdirectory="nf-core",
         hide_progress=False,
     ):
-        super().__init__(dir=dir, remote_url=remote_url, branch=branch, no_pull=no_pull, hide_progress=False)
+        super().__init__(
+            dir=dir,
+            remote_url=remote_url,
+            branch=branch,
+            no_pull=no_pull,
+            subdirectory=subdirectory,
+            hide_progress=False,
+        )
 
         self.fail_warned = fail_warned
         self.passed = []
@@ -86,25 +94,44 @@ class ModuleLint(ModuleCommand):
             modules_json.check_up_to_date()
             all_pipeline_modules = modules_json.get_all_modules()
             if self.modules_repo.remote_url in all_pipeline_modules:
-                module_dir = Path(self.dir, "modules", "nf-core")
+                module_dir = Path(self.dir, "modules", self.subdirectory)
                 self.all_remote_modules = [
-                    NFCoreModule(m[1], self.modules_repo.remote_url, module_dir / m[1], self.repo_type, Path(self.dir))
+                    NFCoreModule(
+                        m[1],
+                        self.modules_repo.remote_url,
+                        module_dir / m[1],
+                        self.repo_type,
+                        Path(self.dir),
+                    )
                     for m in all_pipeline_modules[self.modules_repo.remote_url]
                 ]  # m = (module_dir, module_name)
                 if not self.all_remote_modules:
-                    raise LookupError(f"No modules from {self.modules_repo.remote_url} installed in pipeline.")
+                    raise LookupError(
+                        f"No modules from {self.modules_repo.remote_url} installed in pipeline."
+                    )
                 local_module_dir = Path(self.dir, "modules", "local")
                 self.all_local_modules = [
-                    NFCoreModule(m, None, local_module_dir / m, self.repo_type, Path(self.dir), nf_core_module=False)
+                    NFCoreModule(
+                        m,
+                        None,
+                        local_module_dir / m,
+                        self.repo_type,
+                        Path(self.dir),
+                        nf_core_module=False,
+                    )
                     for m in self.get_local_modules()
                 ]
 
             else:
-                raise LookupError(f"No modules from {self.modules_repo.remote_url} installed in pipeline.")
+                raise LookupError(
+                    f"No modules from {self.modules_repo.remote_url} installed in pipeline."
+                )
         else:
             module_dir = Path(self.dir, self.default_modules_path)
             self.all_remote_modules = [
-                NFCoreModule(m, None, module_dir / m, self.repo_type, Path(self.dir))
+                NFCoreModule(
+                    m, None, module_dir / m, self.repo_type, Path(self.dir)
+                )
                 for m in self.get_modules_clone_modules()
             ]
             self.all_local_modules = []
@@ -127,7 +154,13 @@ class ModuleLint(ModuleCommand):
                 "module_changes",
             ]
         else:
-            return ["main_nf", "meta_yml", "module_todos", "module_deprecations", "module_tests"]
+            return [
+                "main_nf",
+                "meta_yml",
+                "module_todos",
+                "module_deprecations",
+                "module_tests",
+            ]
 
     def lint(
         self,
@@ -177,21 +210,31 @@ class ModuleLint(ModuleCommand):
                     "name": "tool_name",
                     "message": "Tool name:",
                     "when": lambda x: x["all_modules"] == "Named module",
-                    "choices": [m.module_name for m in self.all_remote_modules],
+                    "choices": [
+                        m.module_name for m in self.all_remote_modules
+                    ],
                 },
             ]
-            answers = questionary.unsafe_prompt(questions, style=nf_core.utils.nfcore_question_style)
+            answers = questionary.unsafe_prompt(
+                questions, style=nf_core.utils.nfcore_question_style
+            )
             all_modules = answers["all_modules"] == "All modules"
             module = answers.get("tool_name")
 
         # Only lint the given module
         if module:
             if all_modules:
-                raise ModuleLintException("You cannot specify a tool and request all tools to be linted.")
+                raise ModuleLintException(
+                    "You cannot specify a tool and request all tools to be linted."
+                )
             local_modules = []
-            remote_modules = [m for m in self.all_remote_modules if m.module_name == module]
+            remote_modules = [
+                m for m in self.all_remote_modules if m.module_name == module
+            ]
             if len(remote_modules) == 0:
-                raise ModuleLintException(f"Could not find the specified module: '{module}'")
+                raise ModuleLintException(
+                    f"Could not find the specified module: '{module}'"
+                )
         else:
             local_modules = self.all_local_modules
             remote_modules = self.all_remote_modules
@@ -214,11 +257,15 @@ class ModuleLint(ModuleCommand):
 
         # Lint local modules
         if local and len(local_modules) > 0:
-            self.lint_modules(local_modules, local=True, fix_version=fix_version)
+            self.lint_modules(
+                local_modules, local=True, fix_version=fix_version
+            )
 
         # Lint nf-core modules
         if len(remote_modules) > 0:
-            self.lint_modules(remote_modules, local=False, fix_version=fix_version)
+            self.lint_modules(
+                remote_modules, local=False, fix_version=fix_version
+            )
 
         if print_results:
             self._print_results(show_passed=show_passed)
@@ -266,18 +313,23 @@ class ModuleLint(ModuleCommand):
             "[magenta]{task.completed} of {task.total}[reset] » [bold yellow]{task.fields[test_name]}",
             transient=True,
             console=console,
-            disable=self.hide_progress or os.environ.get("HIDE_PROGRESS", None) is not None,
+            disable=self.hide_progress
+            or os.environ.get("HIDE_PROGRESS", None) is not None,
         )
         with progress_bar:
             lint_progress = progress_bar.add_task(
-                f"Linting {'local' if local else 'nf-core'} modules",
+                f"Linting {'local' if local else self.subdirectory} modules",
                 total=len(modules),
                 test_name=modules[0].module_name,
             )
 
             for mod in modules:
-                progress_bar.update(lint_progress, advance=1, test_name=mod.module_name)
-                self.lint_module(mod, progress_bar, local=local, fix_version=fix_version)
+                progress_bar.update(
+                    lint_progress, advance=1, test_name=mod.module_name
+                )
+                self.lint_module(
+                    mod, progress_bar, local=local, fix_version=fix_version
+                )
 
     def lint_module(self, mod, progress_bar, local=False, fix_version=False):
         """
@@ -342,7 +394,9 @@ class ModuleLint(ModuleCommand):
         for tests in [self.passed, self.warned, self.failed]:
             try:
                 for lint_result in tests:
-                    max_mod_name_len = max(len(lint_result.module_name), max_mod_name_len)
+                    max_mod_name_len = max(
+                        len(lint_result.module_name), max_mod_name_len
+                    )
             except:
                 pass
 
@@ -373,7 +427,12 @@ class ModuleLint(ModuleCommand):
 
         # Table of passed tests
         if len(self.passed) > 0 and show_passed:
-            table = Table(style="green", box=rich.box.MINIMAL, pad_edge=False, border_style="dim")
+            table = Table(
+                style="green",
+                box=rich.box.MINIMAL,
+                pad_edge=False,
+                border_style="dim",
+            )
             table.add_column("Module name", width=max_mod_name_len)
             table.add_column("File path")
             table.add_column("Test message")
@@ -390,7 +449,12 @@ class ModuleLint(ModuleCommand):
 
         # Table of warning tests
         if len(self.warned) > 0:
-            table = Table(style="yellow", box=rich.box.MINIMAL, pad_edge=False, border_style="dim")
+            table = Table(
+                style="yellow",
+                box=rich.box.MINIMAL,
+                pad_edge=False,
+                border_style="dim",
+            )
             table.add_column("Module name", width=max_mod_name_len)
             table.add_column("File path")
             table.add_column("Test message")
@@ -407,7 +471,12 @@ class ModuleLint(ModuleCommand):
 
         # Table of failing tests
         if len(self.failed) > 0:
-            table = Table(style="red", box=rich.box.MINIMAL, pad_edge=False, border_style="dim")
+            table = Table(
+                style="red",
+                box=rich.box.MINIMAL,
+                pad_edge=False,
+                border_style="dim",
+            )
             table.add_column("Module name", width=max_mod_name_len)
             table.add_column("File path")
             table.add_column("Test message")
@@ -430,6 +499,12 @@ class ModuleLint(ModuleCommand):
             rf"[✔] {len(self.passed):>3} Test{_s(self.passed)} Passed",
             style="green",
         )
-        table.add_row(rf"[!] {len(self.warned):>3} Test Warning{_s(self.warned)}", style="yellow")
-        table.add_row(rf"[✗] {len(self.failed):>3} Test{_s(self.failed)} Failed", style="red")
+        table.add_row(
+            rf"[!] {len(self.warned):>3} Test Warning{_s(self.warned)}",
+            style="yellow",
+        )
+        table.add_row(
+            rf"[✗] {len(self.failed):>3} Test{_s(self.failed)} Failed",
+            style="red",
+        )
         console.print(table)

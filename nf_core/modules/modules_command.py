@@ -19,15 +19,15 @@ class ModuleCommand:
     Base class for the 'nf-core modules' commands
     """
 
-    def __init__(self, dir, remote_url=None, branch=None, no_pull=False, hide_progress=False):
+    def __init__(self, dir, remote_url=None, branch=None, no_pull=False, subdirectory='nf-core', hide_progress=False):
         """
         Initialise the ModulesCommand object
         """
-        self.modules_repo = ModulesRepo(remote_url, branch, no_pull, hide_progress)
+        self.modules_repo = ModulesRepo(remote_url, branch, no_pull, subdirectory, hide_progress)
         self.hide_progress = hide_progress
         self.dir = dir
-        self.default_modules_path = Path("modules", "nf-core")
-        self.default_tests_path = Path("tests", "modules", "nf-core")
+        self.default_modules_path = Path("modules", subdirectory)
+        self.default_tests_path = Path("tests", "modules", subdirectory)
         try:
             if self.dir:
                 self.dir, self.repo_type = nf_core.modules.module_utils.get_repo_type(self.dir)
@@ -172,7 +172,7 @@ class ModuleCommand:
                 log.info(f"Removing '{self.modules_repo.local_repo_dir}'")
                 shutil.rmtree(self.modules_repo.local_repo_dir)
                 self.modules_repo.setup_local_repo(
-                    self.modules_repo.remote_url, self.modules_repo.branch, self.hide_progress
+                    self.modules_repo.remote_url, self.modules_repo.branch, self.subdirectory, self.hide_progress
                 )
                 # Move wrong modules to the right directory
                 for module in wrong_location_modules:

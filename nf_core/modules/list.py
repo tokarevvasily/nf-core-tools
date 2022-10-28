@@ -13,8 +13,18 @@ log = logging.getLogger(__name__)
 
 
 class ModuleList(ModuleCommand):
-    def __init__(self, pipeline_dir, remote=True, remote_url=None, branch=None, no_pull=False):
-        super().__init__(pipeline_dir, remote_url, branch, no_pull)
+    def __init__(
+        self,
+        pipeline_dir,
+        remote=True,
+        remote_url=None,
+        branch=None,
+        no_pull=False,
+        subdirectory="nf-core",
+    ):
+        super().__init__(
+            pipeline_dir, remote_url, branch, no_pull, subdirectory
+        )
         self.remote = remote
 
     def list_modules(self, keywords=None, print_json=False):
@@ -46,7 +56,11 @@ class ModuleList(ModuleCommand):
         if self.remote:
 
             # Filter the modules by keywords
-            modules = [mod for mod in self.modules_repo.get_avail_modules() if all(k in mod for k in keywords)]
+            modules = [
+                mod
+                for mod in self.modules_repo.get_avail_modules()
+                if all(k in mod for k in keywords)
+            ]
 
             # Nothing found
             if len(modules) == 0:
@@ -63,7 +77,9 @@ class ModuleList(ModuleCommand):
         else:
             # Check that we are in a pipeline directory
             try:
-                _, repo_type = nf_core.modules.module_utils.get_repo_type(self.dir)
+                _, repo_type = nf_core.modules.module_utils.get_repo_type(
+                    self.dir
+                )
                 if repo_type != "pipeline":
                     raise UserWarning(
                         "The command 'nf-core modules list local' must be run from a pipeline directory.",
@@ -84,13 +100,19 @@ class ModuleList(ModuleCommand):
 
             # Filter by keywords
             repos_with_mods = {
-                repo_url: [mod for mod in modules if all(k in mod[1] for k in keywords)]
+                repo_url: [
+                    mod
+                    for mod in modules
+                    if all(k in mod[1] for k in keywords)
+                ]
                 for repo_url, modules in modules_json.get_all_modules().items()
             }
 
             # Nothing found
             if sum(map(len, repos_with_mods)) == 0:
-                log.info(f"No nf-core modules found in '{self.dir}'{pattern_msg(keywords)}")
+                log.info(
+                    f"No nf-core modules found in '{self.dir}'{pattern_msg(keywords)}"
+                )
                 return ""
 
             table.add_column("Repository")
@@ -120,7 +142,9 @@ class ModuleList(ModuleCommand):
                             date = "[red]Not Available"
                             message = "[red]Not Available"
                     else:
-                        log.warning(f"Commit SHA for module '{install_dir}/{module}' is missing from 'modules.json'")
+                        log.warning(
+                            f"Commit SHA for module '{install_dir}/{module}' is missing from 'modules.json'"
+                        )
                         version_sha = "[red]Not Available"
                         date = "[red]Not Available"
                         message = "[red]Not Available"
@@ -135,5 +159,7 @@ class ModuleList(ModuleCommand):
                 f"{pattern_msg(keywords)}:\n"
             )
         else:
-            log.info(f"Modules installed in '{self.dir}'{pattern_msg(keywords)}:\n")
+            log.info(
+                f"Modules installed in '{self.dir}'{pattern_msg(keywords)}:\n"
+            )
         return table

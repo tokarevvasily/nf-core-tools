@@ -87,6 +87,7 @@ class ModuleLint(ModuleCommand):
         self.passed = []
         self.warned = []
         self.failed = []
+        self.subdirectory = subdirectory
         self.lint_tests = self.get_all_lint_tests(self.repo_type == "pipeline")
 
         if self.repo_type == "pipeline":

@@ -23,15 +23,16 @@ class ModuleInstall(ModuleCommand):
         remote_url=None,
         branch=None,
         no_pull=False,
+        subdirectory='nf-core',
     ):
-        super().__init__(pipeline_dir, remote_url, branch, no_pull)
+        super().__init__(pipeline_dir, remote_url, branch, no_pull, subdirectory)
         self.force = force
         self.prompt = prompt
         self.sha = sha
 
     def install(self, module):
         if self.repo_type == "modules":
-            log.error("You cannot install a module in a clone of nf-core/modules")
+            log.error(f"You cannot install a module in a clone of {self.subdirectory}/modules")
             return False
         # Check whether pipelines is valid
         if not self.has_valid_directory():

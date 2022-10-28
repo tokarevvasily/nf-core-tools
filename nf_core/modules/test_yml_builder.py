@@ -40,8 +40,19 @@ class ModulesTestYmlBuilder(ModuleCommand):
         test_yml_output_path=None,
         force_overwrite=False,
         no_prompts=False,
+        remote_url=None,
+        branch=None,
+        no_pull=False,
+        subdirectory="nf-core",
     ):
-        super().__init__(directory)
+        super().__init__(
+            directory,
+            remote_url=remote_url,
+            branch=branch,
+            no_pull=no_pull,
+            subdirectory=subdirectory,
+        )
+
         self.module_name = module_name
         self.run_tests = run_tests
         self.test_yml_output_path = test_yml_output_path
@@ -52,6 +63,7 @@ class ModulesTestYmlBuilder(ModuleCommand):
         self.entry_points = []
         self.tests = []
         self.errors = []
+        self.subdirectory = subdirectory
 
     def run(self):
         """Run build steps"""
@@ -80,14 +92,22 @@ class ModulesTestYmlBuilder(ModuleCommand):
                 choices=modules_repo.get_avail_modules(),
                 style=nf_core.utils.nfcore_question_style,
             ).unsafe_ask()
-        self.module_dir = os.path.join(self.default_modules_path, *self.module_name.split("/"))
-        self.module_test_main = os.path.join(self.default_tests_path, *self.module_name.split("/"), "main.nf")
+        self.module_dir = os.path.join(
+            self.default_modules_path, *self.module_name.split("/")
+        )
+        self.module_test_main = os.path.join(
+            self.default_tests_path, *self.module_name.split("/"), "main.nf"
+        )
 
         # First, sanity check that the module directory exists
         if not os.path.isdir(self.module_dir):
-            raise UserWarning(f"Cannot find directory '{self.module_dir}'. Should be TOOL/SUBTOOL or TOOL")
+            raise UserWarning(
+                f"Cannot find directory '{self.module_dir}'. Should be TOOL/SUBTOOL or TOOL"
+            )
         if not os.path.exists(self.module_test_main):
-            raise UserWarning(f"Cannot find module test workflow '{self.module_test_main}'")
+            raise UserWarning(
+                f"Cannot find module test workflow '{self.module_test_main}'"
+            )
 
         # Check that we're running tests if no prompts
         if not self.run_tests and self.no_prompts:
@@ -96,12 +116,13 @@ class ModulesTestYmlBuilder(ModuleCommand):
 
         # Get the output YAML file / check it does not already exist
         while self.test_yml_output_path is None:
-            default_val = f"tests/modules/nf-core/{self.module_name}/test.yml"
+            default_val = f"tests/modules/{self.subdirectory}/{self.module_name}/test.yml"
             if self.no_prompts:
                 self.test_yml_output_path = default_val
             else:
                 self.test_yml_output_path = rich.prompt.Prompt.ask(
-                    "[violet]Test YAML output path[/] (- for stdout)", default=default_val
+                    "[violet]Test YAML output path[/] (- for stdout)",
+                    default=default_val,
                 ).strip()
                 if self.test_yml_output_path == "":
                     self.test_yml_output_path = None
@@ -118,21 +139,28 @@ class ModulesTestYmlBuilder(ModuleCommand):
                         self.force_overwrite = True
                     else:
                         self.test_yml_output_path = None
-        if os.path.exists(self.test_yml_output_path) and not self.force_overwrite:
+        if (
+            os.path.exists(self.test_yml_output_path)
+            and not self.force_overwrite
+        ):
             raise UserWarning(
                 f"Test YAML file already exists! '{self.test_yml_output_path}'. Use '--force' to overwrite."
             )
 
     def scrape_workflow_entry_points(self):
         """Find the test workflow entry points from main.nf"""
-        log.info(f"Looking for test workflow entry points: '{self.module_test_main}'")
+        log.info(
+            f"Looking for test workflow entry points: '{self.module_test_main}'"
+        )
         with open(self.module_test_main, "r") as fh:
             for line in fh:
                 match = re.match(r"workflow\s+(\S+)\s+{", line)
                 if match:
                     self.entry_points.append(match.group(1))
         if len(self.entry_points) == 0:
-            raise UserWarning("No workflow entry points found in 'self.module_test_main'")
+            raise UserWarning(
+                "No workflow entry points found in 'self.module_test_main'"
+            )
 
     def build_all_tests(self):
         """
@@ -166,16 +194,20 @@ class ModulesTestYmlBuilder(ModuleCommand):
             if self.no_prompts:
                 ep_test["name"] = default_val
             else:
-                ep_test["name"] = rich.prompt.Prompt.ask("[violet]Test name", default=default_val).strip()
+                ep_test["name"] = rich.prompt.Prompt.ask(
+                    "[violet]Test name", default=default_val
+                ).strip()
 
         while ep_test["command"] == "":
             # Don't think we need the last `-c` flag, but keeping to avoid having to update 100s modules.
             # See https://github.com/nf-core/tools/issues/1562
-            default_val = f"nextflow run ./tests/modules/nf-core/{self.module_name} -entry {entry_point} -c ./tests/config/nextflow.config -c ./tests/modules/nf-core/{self.module_name}/nextflow.config"
+            default_val = f"nextflow run ./tests/modules/{self.subdirectory}/{self.module_name} -entry {entry_point} -c ./tests/config/nextflow.config -c ./tests/modules/{self.subdirectory}/{self.module_name}/nextflow.config"
             if self.no_prompts:
                 ep_test["command"] = default_val
             else:
-                ep_test["command"] = rich.prompt.Prompt.ask("[violet]Test command", default=default_val).strip()
+                ep_test["command"] = rich.prompt.Prompt.ask(
+                    "[violet]Test command", default=default_val
+                ).strip()
 
         while len(ep_test["tags"]) == 0:
             mod_name_parts = self.module_name.split("/")
@@ -189,9 +221,12 @@ class ModulesTestYmlBuilder(ModuleCommand):
             else:
                 while len(ep_test["tags"]) == 0:
                     prompt_tags = rich.prompt.Prompt.ask(
-                        "[violet]Test tags[/] (comma separated)", default=",".join(tag_defaults)
+                        "[violet]Test tags[/] (comma separated)",
+                        default=",".join(tag_defaults),
                     ).strip()
-                    ep_test["tags"] = [t.strip() for t in prompt_tags.split(",")]
+                    ep_test["tags"] = [
+                        t.strip() for t in prompt_tags.split(",")
+                    ]
 
         ep_test["files"] = self.get_md5_sums(entry_point, ep_test["command"])
 
@@ -241,7 +276,9 @@ class ModulesTestYmlBuilder(ModuleCommand):
                 # Check that this isn't an empty file
                 if self.check_if_empty_file(file_path):
                     if not is_repeat:
-                        self.errors.append(f"Empty file found! '{os.path.basename(file_path)}'")
+                        self.errors.append(
+                            f"Empty file found! '{os.path.basename(file_path)}'"
+                        )
                 # Add the md5 anyway, linting should fail later and can be manually removed if needed.
                 #  Originally we skipped this if empty, but then it's too easy to miss the warning.
                 #  Equally, if a file is legitimately empty we don't want to prevent this from working.
@@ -255,7 +292,9 @@ class ModulesTestYmlBuilder(ModuleCommand):
 
         return test_files
 
-    def get_md5_sums(self, entry_point, command, results_dir=None, results_dir_repeat=None):
+    def get_md5_sums(
+        self, entry_point, command, results_dir=None, results_dir_repeat=None
+    ):
         """
         Recursively go through directories and subdirectories
         and generate tuples of (<file_path>, <md5sum>)
@@ -265,7 +304,9 @@ class ModulesTestYmlBuilder(ModuleCommand):
         run_this_test = False
         while results_dir is None:
             if self.run_tests or run_this_test:
-                results_dir, results_dir_repeat = self.run_tests_workflow(command)
+                results_dir, results_dir_repeat = self.run_tests_workflow(
+                    command
+                )
             else:
                 results_dir = rich.prompt.Prompt.ask(
                     "[violet]Test output folder with results[/] (leave blank to run test)"
@@ -281,18 +322,26 @@ class ModulesTestYmlBuilder(ModuleCommand):
 
         # If test was repeated, compare the md5 sums
         if results_dir_repeat:
-            test_files_repeat = self.create_test_file_dict(results_dir=results_dir_repeat, is_repeat=True)
+            test_files_repeat = self.create_test_file_dict(
+                results_dir=results_dir_repeat, is_repeat=True
+            )
 
             # Compare both test.yml files
             for i in range(len(test_files)):
-                if test_files[i].get("md5sum") and not test_files[i].get("md5sum") == test_files_repeat[i]["md5sum"]:
+                if (
+                    test_files[i].get("md5sum")
+                    and not test_files[i].get("md5sum")
+                    == test_files_repeat[i]["md5sum"]
+                ):
                     test_files[i].pop("md5sum")
                     test_files[i][
                         "contains"
                     ] = "[ # TODO nf-core: file md5sum was variable, please replace this text with a string found in the file instead ]"
 
         if len(test_files) == 0:
-            raise UserWarning(f"Could not find any test result files in '{results_dir}'")
+            raise UserWarning(
+                f"Could not find any test result files in '{results_dir}'"
+            )
 
         return test_files
 
@@ -315,7 +364,9 @@ class ModulesTestYmlBuilder(ModuleCommand):
                     "message": "Choose software profile",
                     "choices": ["Docker", "Singularity", "Conda"],
                 }
-                answer = questionary.unsafe_prompt([question], style=nf_core.utils.nfcore_question_style)
+                answer = questionary.unsafe_prompt(
+                    [question], style=nf_core.utils.nfcore_question_style
+                )
                 profile = answer["profile"].lower()
                 if profile in ["singularity", "conda"]:
                     os.environ["PROFILE"] = profile
@@ -324,23 +375,31 @@ class ModulesTestYmlBuilder(ModuleCommand):
         tmp_dir = tempfile.mkdtemp()
         tmp_dir_repeat = tempfile.mkdtemp()
         work_dir = tempfile.mkdtemp()
-        command_repeat = command + f" --outdir {tmp_dir_repeat} -work-dir {work_dir}"
+        command_repeat = (
+            command + f" --outdir {tmp_dir_repeat} -work-dir {work_dir}"
+        )
         command += f" --outdir {tmp_dir} -work-dir {work_dir}"
 
-        log.info(f"Running '{self.module_name}' test with command:\n[violet]{command}")
+        log.info(
+            f"Running '{self.module_name}' test with command:\n[violet]{command}"
+        )
         try:
             nfconfig_raw = subprocess.check_output(shlex.split(command))
             log.info("Repeating test ...")
             nfconfig_raw = subprocess.check_output(shlex.split(command_repeat))
 
         except OSError as e:
-            if e.errno == errno.ENOENT and command.strip().startswith("nextflow "):
+            if e.errno == errno.ENOENT and command.strip().startswith(
+                "nextflow "
+            ):
                 raise AssertionError(
                     "It looks like Nextflow is not installed. It is required for most nf-core functions."
                 )
         except subprocess.CalledProcessError as e:
             output = rich.markup.escape(e.output.decode())
-            raise UserWarning(f"Error running test workflow (exit code {e.returncode})\n[red]{output}")
+            raise UserWarning(
+                f"Error running test workflow (exit code {e.returncode})\n[red]{output}"
+            )
         except Exception as e:
             raise UserWarning(f"Error running test workflow: {e}")
         else:
@@ -359,13 +418,22 @@ class ModulesTestYmlBuilder(ModuleCommand):
 
         if self.test_yml_output_path == "-":
             console = rich.console.Console()
-            yaml_str = yaml.dump(self.tests, Dumper=nf_core.utils.custom_yaml_dumper(), width=10000000)
+            yaml_str = yaml.dump(
+                self.tests,
+                Dumper=nf_core.utils.custom_yaml_dumper(),
+                width=10000000,
+            )
             console.print("\n", Syntax(yaml_str, "yaml"), "\n")
             return
 
         try:
             log.info(f"Writing to '{self.test_yml_output_path}'")
             with open(self.test_yml_output_path, "w") as fh:
-                yaml.dump(self.tests, fh, Dumper=nf_core.utils.custom_yaml_dumper(), width=10000000)
+                yaml.dump(
+                    self.tests,
+                    fh,
+                    Dumper=nf_core.utils.custom_yaml_dumper(),
+                    width=10000000,
+                )
         except FileNotFoundError as e:
             raise UserWarning(f"Could not create test.yml file: '{e}'")

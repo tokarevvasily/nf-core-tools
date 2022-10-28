@@ -678,6 +678,7 @@ def remote(ctx, keywords, json):
             ctx.obj["modules_repo_url"],
             ctx.obj["modules_repo_branch"],
             ctx.obj["modules_repo_no_pull"],
+            ctx.obj["modules_subdirectory"],
         )
         stdout.print(module_list.list_modules(keywords, json))
     except (UserWarning, LookupError) as e:
@@ -766,6 +767,7 @@ def install(ctx, tool, dir, prompt, force, sha):
             ctx.obj["modules_repo_url"],
             ctx.obj["modules_repo_branch"],
             ctx.obj["modules_repo_no_pull"],
+            ctx.obj["modules_subdirectory"],
         )
         exit_status = module_install.install(tool)
         if not exit_status and all:
@@ -845,6 +847,7 @@ def update(ctx, tool, dir, force, prompt, sha, all, preview, save_diff):
             ctx.obj["modules_repo_url"],
             ctx.obj["modules_repo_branch"],
             ctx.obj["modules_repo_no_pull"],
+            ctx.obj["modules_subdirectory"],
         )
         exit_status = module_install.update(tool)
         if not exit_status and all:
@@ -880,6 +883,7 @@ def patch(ctx, tool, dir):
             ctx.obj["modules_repo_url"],
             ctx.obj["modules_repo_branch"],
             ctx.obj["modules_repo_no_pull"],
+            ctx.obj["modules_subdirectory"],
         )
         module_patch.patch(tool)
     except (UserWarning, LookupError) as e:
@@ -910,6 +914,7 @@ def remove(ctx, dir, tool):
             ctx.obj["modules_repo_url"],
             ctx.obj["modules_repo_branch"],
             ctx.obj["modules_repo_no_pull"],
+            ctx.obj["modules_subdirectory"],
         )
         module_remove.remove(tool)
     except (UserWarning, LookupError) as e:
@@ -1022,6 +1027,10 @@ def create_module(
             force,
             conda_name,
             conda_package_version,
+            ctx.obj["modules_repo_url"],
+            ctx.obj["modules_repo_branch"],
+            ctx.obj["modules_repo_no_pull"],
+            ctx.obj["modules_subdirectory"],
         )
         module_create.create()
     except UserWarning as e:
@@ -1074,6 +1083,10 @@ def create_test_yml(ctx, tool, run_tests, output, force, no_prompts):
             test_yml_output_path=output,
             force_overwrite=force,
             no_prompts=no_prompts,
+            remote_url=ctx.obj["modules_repo_url"],
+            branch=ctx.obj["modules_repo_branch"],
+            no_pull=ctx.obj["modules_repo_no_pull"],
+            subdirectory=ctx.obj["modules_subdirectory"],
         )
         meta_builder.run()
     except (UserWarning, LookupError) as e:
@@ -1126,7 +1139,6 @@ def lint(
     local,
     passed,
     fix_version,
-    subdirectory,
     hide_progress,
 ):  # pylint: disable=redefined-outer-name
     """
@@ -1238,6 +1250,7 @@ def bump_versions(ctx, tool, dir, all, show_all):
             ctx.obj["modules_repo_url"],
             ctx.obj["modules_repo_branch"],
             ctx.obj["modules_repo_no_pull"],
+            ctx.obj["modules_subdirectory"],
         )
         version_bumper.bump_versions(
             module=tool, all_modules=all, show_uptodate=show_all

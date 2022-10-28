@@ -1,5 +1,5 @@
 """
-Bump versions for all modules on nf-core/modules
+Bump versions for all modules on {repo_name}/modules
 or for a single module
 """
 
@@ -27,16 +27,29 @@ log = logging.getLogger(__name__)
 
 
 class ModuleVersionBumper(ModuleCommand):
-    def __init__(self, pipeline_dir, remote_url=None, branch=None, no_pull=False):
-        super().__init__(pipeline_dir, remote_url, branch, no_pull)
+    def __init__(
+        self,
+        pipeline_dir,
+        remote_url=None,
+        branch=None,
+        no_pull=False,
+        subdirectory="nf-core",
+    ):
+        super().__init__(
+            pipeline_dir, remote_url, branch, no_pull, subdirectory
+        )
 
         self.up_to_date = None
         self.updated = None
         self.failed = None
         self.show_up_to_date = None
         self.tools_config = {}
+        self.subdirectory = subdirectory
+        self.remote_url = remote_url
 
-    def bump_versions(self, module=None, all_modules=False, show_uptodate=False):
+    def bump_versions(
+        self, module=None, all_modules=False, show_uptodate=False
+    ):
         """
         Bump the container and conda version of single module or all modules
 
@@ -55,18 +68,29 @@ class ModuleVersionBumper(ModuleCommand):
         self.ignored = []
         self.show_up_to_date = show_uptodate
 
+        # Convenience variable
+        self.fullname = (
+            nf_core.modules.module_utils.repo_full_name_from_remote(
+                self.remote_url
+            )
+        )
+
         # Check modules directory structure
         self.check_modules_structure()
 
         # Verify that this is not a pipeline
-        self.dir, repo_type = nf_core.modules.module_utils.get_repo_type(self.dir)
+        self.dir, repo_type = nf_core.modules.module_utils.get_repo_type(
+            self.dir
+        )
         if not repo_type == "modules":
             raise nf_core.modules.module_utils.ModuleException(
-                "This command only works on the nf-core/modules repository, not on pipelines!"
+                f"This command only works on the modules repository, not on pipelines!"
             )
 
         # Get list of all modules
-        _, nfcore_modules = nf_core.modules.module_utils.get_installed_modules(self.dir)
+        _, nfcore_modules = nf_core.modules.module_utils.get_installed_modules(
+            self.dir, subdirectory=self.subdirectory
+        )
 
         # Load the .nf-core.yml config
         self.tools_config = nf_core.utils.load_tools_config(self.dir)
@@ -79,7 +103,9 @@ class ModuleVersionBumper(ModuleCommand):
                 "message": "Bump versions for all modules or a single named module?",
                 "choices": ["All modules", "Named module"],
             }
-            answer = questionary.unsafe_prompt([question], style=nf_core.utils.nfcore_question_style)
+            answer = questionary.unsafe_prompt(
+                [question], style=nf_core.utils.nfcore_question_style
+            )
             if answer["all_modules"] == "All modules":
                 all_modules = True
             else:
@@ -95,9 +121,13 @@ class ModuleVersionBumper(ModuleCommand):
                 raise nf_core.modules.module_utils.ModuleException(
                     "You cannot specify a tool and request all tools to be bumped."
                 )
-            nfcore_modules = [m for m in nfcore_modules if m.module_name == module]
+            nfcore_modules = [
+                m for m in nfcore_modules if m.module_name == module
+            ]
             if len(nfcore_modules) == 0:
-                raise nf_core.modules.module_utils.ModuleException(f"Could not find the specified module: '{module}'")
+                raise nf_core.modules.module_utils.ModuleException(
+                    f"Could not find the specified module: '{module}'"
+                )
 
         progress_bar = rich.progress.Progress(
             "[bold blue]{task.description}",
@@ -108,10 +138,14 @@ class ModuleVersionBumper(ModuleCommand):
         )
         with progress_bar:
             bump_progress = progress_bar.add_task(
-                "Bumping nf-core modules versions", total=len(nfcore_modules), test_name=nfcore_modules[0].module_name
+                f"Bumping {self.fullname} modules versions",
+                total=len(nfcore_modules),
+                test_name=nfcore_modules[0].module_name,
             )
             for mod in nfcore_modules:
-                progress_bar.update(bump_progress, advance=1, test_name=mod.module_name)
+                progress_bar.update(
+                    bump_progress, advance=1, test_name=mod.module_name
+                )
                 self.bump_module_version(mod)
 
         self._print_results()
@@ -129,7 +163,9 @@ class ModuleVersionBumper(ModuleCommand):
 
         # If multiple versions - don't update! (can't update mulled containers)
         if not bioconda_packages or len(bioconda_packages) > 1:
-            self.failed.append(("Ignoring mulled container", module.module_name))
+            self.failed.append(
+                ("Ignoring mulled container", module.module_name)
+            )
             return False
 
         # Don't update if blocked in blacklist
@@ -137,11 +173,19 @@ class ModuleVersionBumper(ModuleCommand):
         if module.module_name in self.bump_versions_config:
             config_version = self.bump_versions_config[module.module_name]
             if not config_version:
-                self.ignored.append(("Omitting module due to config.", module.module_name))
+                self.ignored.append(
+                    ("Omitting module due to config.", module.module_name)
+                )
                 return False
 
         # check for correct version and newer versions
-        bioconda_tool_name = bioconda_packages[0].split("=")[0].replace("bioconda::", "").strip("'").strip('"')
+        bioconda_tool_name = (
+            bioconda_packages[0]
+            .split("=")[0]
+            .replace("bioconda::", "")
+            .strip("'")
+            .strip('"')
+        )
         bp = bioconda_packages[0]
         bp = bp.strip("'").strip('"')
         bioconda_version = bp.split("=")[1]
@@ -150,12 +194,22 @@ class ModuleVersionBumper(ModuleCommand):
             try:
                 response = nf_core.utils.anaconda_package(bp)
             except (LookupError, ValueError):
-                self.failed.append((f"Conda version not specified correctly: {module.main_nf}", module.module_name))
+                self.failed.append(
+                    (
+                        f"Conda version not specified correctly: {module.main_nf}",
+                        module.module_name,
+                    )
+                )
                 return False
 
             # Check that required version is available at all
             if bioconda_version not in response.get("versions"):
-                self.failed.append((f"Conda package had unknown version: `{module.main_nf}`", module.module_name))
+                self.failed.append(
+                    (
+                        f"Conda package had unknown version: `{module.main_nf}`",
+                        module.module_name,
+                    )
+                )
                 return False
 
             # Check version is latest available
@@ -167,14 +221,30 @@ class ModuleVersionBumper(ModuleCommand):
             log.debug(f"Updating version for {module.module_name}")
             # Get docker and singularity container links
             try:
-                docker_img, singularity_img = nf_core.utils.get_biocontainer_tag(bioconda_tool_name, last_ver)
+                (
+                    docker_img,
+                    singularity_img,
+                ) = nf_core.utils.get_biocontainer_tag(
+                    bioconda_tool_name, last_ver
+                )
             except LookupError as e:
-                self.failed.append((f"Could not download container tags: {e}", module.module_name))
+                self.failed.append(
+                    (
+                        f"Could not download container tags: {e}",
+                        module.module_name,
+                    )
+                )
                 return False
 
             patterns = [
-                (bioconda_packages[0], f"'bioconda::{bioconda_tool_name}={last_ver}'"),
-                (rf"quay.io/biocontainers/{bioconda_tool_name}:[^'\"\s]+", docker_img),
+                (
+                    bioconda_packages[0],
+                    f"'bioconda::{bioconda_tool_name}={last_ver}'",
+                ),
+                (
+                    rf"quay.io/biocontainers/{bioconda_tool_name}:[^'\"\s]+",
+                    docker_img,
+                ),
                 (
                     rf"https://depot.galaxyproject.org/singularity/{bioconda_tool_name}:[^'\"\s]+",
                     singularity_img,
@@ -206,7 +276,10 @@ class ModuleVersionBumper(ModuleCommand):
                     content = "\n".join(newcontent) + "\n"
                 else:
                     self.failed.append(
-                        (f"Did not find pattern {pattern[0]} in module {module.module_name}", module.module_name)
+                        (
+                            f"Did not find pattern {pattern[0]} in module {module.module_name}",
+                            module.module_name,
+                        )
                     )
                     return False
 
@@ -223,7 +296,12 @@ class ModuleVersionBumper(ModuleCommand):
             return True
 
         else:
-            self.up_to_date.append((f"Module version up to date: {module.module_name}", module.module_name))
+            self.up_to_date.append(
+                (
+                    f"Module version up to date: {module.module_name}",
+                    module.module_name,
+                )
+            )
             return True
 
     def get_bioconda_version(self, module):
@@ -236,9 +314,13 @@ class ModuleVersionBumper(ModuleCommand):
             with open(module.main_nf, "r") as fh:
                 for l in fh:
                     if "bioconda::" in l:
-                        bioconda_packages = [b for b in l.split() if "bioconda::" in b]
+                        bioconda_packages = [
+                            b for b in l.split() if "bioconda::" in b
+                        ]
         except FileNotFoundError:
-            log.error(f"Could not read `main.nf` of {module.module_name} module.")
+            log.error(
+                f"Could not read `main.nf` of {module.module_name} module."
+            )
 
         return bioconda_packages
 
@@ -299,7 +381,10 @@ class ModuleVersionBumper(ModuleCommand):
         # Table of updated modules
         if len(self.updated) > 0:
             console.print(
-                rich.panel.Panel(rf"[!] {len(self.updated)} Module{_s(self.updated)} updated", style="bold yellow")
+                rich.panel.Panel(
+                    rf"[!] {len(self.updated)} Module{_s(self.updated)} updated",
+                    style="bold yellow",
+                )
             )
             table = Table(style="yellow", box=rich.box.ROUNDED)
             table.add_column("Module name", width=max_mod_name_len)
@@ -310,7 +395,10 @@ class ModuleVersionBumper(ModuleCommand):
         # Table of modules that couldn't be updated
         if len(self.failed) > 0:
             console.print(
-                rich.panel.Panel(rf"[!] {len(self.failed)} Module update{_s(self.failed)} failed", style="bold red")
+                rich.panel.Panel(
+                    rf"[!] {len(self.failed)} Module update{_s(self.failed)} failed",
+                    style="bold red",
+                )
             )
             table = Table(style="red", box=rich.box.ROUNDED)
             table.add_column("Module name", width=max_mod_name_len)
@@ -321,7 +409,10 @@ class ModuleVersionBumper(ModuleCommand):
         # Table of modules ignored due to `.nf-core.yml`
         if len(self.ignored) > 0:
             console.print(
-                rich.panel.Panel(rf"[!] {len(self.ignored)} Module update{_s(self.ignored)} ignored", style="grey58")
+                rich.panel.Panel(
+                    rf"[!] {len(self.ignored)} Module update{_s(self.ignored)} ignored",
+                    style="grey58",
+                )
             )
             table = Table(style="grey58", box=rich.box.ROUNDED)
             table.add_column("Module name", width=max_mod_name_len)

@@ -71,7 +71,7 @@ def repo_full_name_from_remote(remote_url):
     return path
 
 
-def get_installed_modules(dir, repo_type="modules"):
+def get_installed_modules(dir, repo_type="modules", subdirectory="nf-core"):
     """
     Make a list of all modules installed in this repository
 
@@ -82,13 +82,13 @@ def get_installed_modules(dir, repo_type="modules"):
     In case the module contains several tools, one path to each tool directory
     is returned.
 
-    returns (local_modules, nfcore_modules)
+    returns (local_modules, remote_modules)
     """
     # initialize lists
     local_modules = []
     nfcore_modules = []
     local_modules_dir = None
-    nfcore_modules_dir = os.path.join(dir, "modules", "nf-core")
+    nfcore_modules_dir = os.path.join(dir, "modules", subdirectory)
 
     # Get local modules
     if repo_type == "pipeline":
@@ -97,11 +97,15 @@ def get_installed_modules(dir, repo_type="modules"):
         # Filter local modules
         if os.path.exists(local_modules_dir):
             local_modules = os.listdir(local_modules_dir)
-            local_modules = sorted([x for x in local_modules if x.endswith(".nf")])
+            local_modules = sorted(
+                [x for x in local_modules if x.endswith(".nf")]
+            )
 
     # Get nf-core modules
     if os.path.exists(nfcore_modules_dir):
-        for m in sorted([m for m in os.listdir(nfcore_modules_dir) if not m == "lib"]):
+        for m in sorted(
+            [m for m in os.listdir(nfcore_modules_dir) if not m == "lib"]
+        ):
             if not os.path.isdir(os.path.join(nfcore_modules_dir, m)):
                 raise ModuleException(
                     f"File found in '{nfcore_modules_dir}': '{m}'! This directory should only contain module directories."
@@ -117,7 +121,13 @@ def get_installed_modules(dir, repo_type="modules"):
     # Make full (relative) file paths and create NFCoreModule objects
     local_modules = [os.path.join(local_modules_dir, m) for m in local_modules]
     nfcore_modules = [
-        NFCoreModule(m, "nf-core/modules", Path(nfcore_modules_dir, m), repo_type=repo_type, base_dir=Path(dir))
+        NFCoreModule(
+            m,
+            "nf-core/modules",
+            Path(nfcore_modules_dir, m),
+            repo_type=repo_type,
+            base_dir=Path(dir),
+        )
         for m in nfcore_modules
     ]
 
@@ -155,7 +165,9 @@ def get_repo_type(dir, repo_type=None, use_prompt=True):
 
     # If not set, prompt the user
     if not repo_type and use_prompt:
-        log.warning("Can't find a '.nf-core.yml' file that defines 'repository_type'")
+        log.warning(
+            "Can't find a '.nf-core.yml' file that defines 'repository_type'"
+        )
         repo_type = questionary.select(
             "Is this repository an nf-core pipeline or a fork of nf-core/modules?",
             choices=[
@@ -166,8 +178,13 @@ def get_repo_type(dir, repo_type=None, use_prompt=True):
         ).unsafe_ask()
 
         # Save the choice in the config file
-        log.info("To avoid this prompt in the future, add the 'repository_type' key to a root '.nf-core.yml' file.")
-        if rich.prompt.Confirm.ask("[bold][blue]?[/] Would you like me to add this config now?", default=True):
+        log.info(
+            "To avoid this prompt in the future, add the 'repository_type' key to a root '.nf-core.yml' file."
+        )
+        if rich.prompt.Confirm.ask(
+            "[bold][blue]?[/] Would you like me to add this config now?",
+            default=True,
+        ):
             with open(os.path.join(dir, ".nf-core.yml"), "a+") as fh:
                 fh.write(f"repository_type: {repo_type}\n")
                 log.info("Config added to '.nf-core.yml'")
@@ -196,34 +213,52 @@ def prompt_module_version_sha(module, modules_repo, installed_sha=None):
         git_sha (str): The selected version of the module
     """
     older_commits_choice = questionary.Choice(
-        title=[("fg:ansiyellow", "older commits"), ("class:choice-default", "")], value=""
+        title=[
+            ("fg:ansiyellow", "older commits"),
+            ("class:choice-default", ""),
+        ],
+        value="",
     )
     git_sha = ""
     page_nbr = 1
 
     all_commits = modules_repo.get_module_git_log(module)
     next_page_commits = [next(all_commits, None) for _ in range(10)]
-    next_page_commits = [commit for commit in next_page_commits if commit is not None]
+    next_page_commits = [
+        commit for commit in next_page_commits if commit is not None
+    ]
 
     while git_sha == "":
         commits = next_page_commits
         next_page_commits = [next(all_commits, None) for _ in range(10)]
-        next_page_commits = [commit for commit in next_page_commits if commit is not None]
+        next_page_commits = [
+            commit for commit in next_page_commits if commit is not None
+        ]
         if all(commit is None for commit in next_page_commits):
             next_page_commits = None
 
         choices = []
-        for title, sha in map(lambda commit: (commit["trunc_message"], commit["git_sha"]), commits):
-            display_color = "fg:ansiblue" if sha != installed_sha else "fg:ansired"
+        for title, sha in map(
+            lambda commit: (commit["trunc_message"], commit["git_sha"]),
+            commits,
+        ):
+            display_color = (
+                "fg:ansiblue" if sha != installed_sha else "fg:ansired"
+            )
             message = f"{title} {sha}"
             if installed_sha == sha:
                 message += " (installed version)"
-            commit_display = [(display_color, message), ("class:choice-default", "")]
+            commit_display = [
+                (display_color, message),
+                ("class:choice-default", ""),
+            ]
             choices.append(questionary.Choice(title=commit_display, value=sha))
         if next_page_commits is not None:
             choices += [older_commits_choice]
         git_sha = questionary.select(
-            f"Select '{module}' commit:", choices=choices, style=nf_core.utils.nfcore_question_style
+            f"Select '{module}' commit:",
+            choices=choices,
+            style=nf_core.utils.nfcore_question_style,
         ).unsafe_ask()
         page_nbr += 1
     return git_sha

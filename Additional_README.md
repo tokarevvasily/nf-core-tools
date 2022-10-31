@@ -3,7 +3,7 @@
 ```
 mamba create -n nf-core-custom python=3.10 pip git=2
 # move into cloned repo and activate new environment
-conda acitvate nf-core-custom
+conda activate nf-core-custom
 pip install ./
 ```
 

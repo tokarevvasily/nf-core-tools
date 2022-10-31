@@ -19,18 +19,31 @@ class ModuleCommand:
     Base class for the 'nf-core modules' commands
     """
 
-    def __init__(self, dir, remote_url=None, branch=None, no_pull=False, subdirectory='nf-core', hide_progress=False):
+    def __init__(
+        self,
+        dir,
+        remote_url=None,
+        branch=None,
+        no_pull=False,
+        subdirectory="nf-core",
+        hide_progress=False,
+    ):
         """
         Initialise the ModulesCommand object
         """
-        self.modules_repo = ModulesRepo(remote_url, branch, no_pull, subdirectory, hide_progress)
+        self.modules_repo = ModulesRepo(
+            remote_url, branch, no_pull, subdirectory, hide_progress
+        )
         self.hide_progress = hide_progress
         self.dir = dir
         self.default_modules_path = Path("modules", subdirectory)
         self.default_tests_path = Path("tests", "modules", subdirectory)
         try:
             if self.dir:
-                self.dir, self.repo_type = nf_core.modules.module_utils.get_repo_type(self.dir)
+                (
+                    self.dir,
+                    self.repo_type,
+                ) = nf_core.modules.module_utils.get_repo_type(self.dir)
             else:
                 self.repo_type = None
         except LookupError as e:
@@ -38,7 +51,7 @@ class ModuleCommand:
 
     def get_modules_clone_modules(self):
         """
-        Get the modules available in a clone of nf-core/modules
+        Get the modules available in a clone of <remote_url>
         """
         module_base_path = Path(self.dir, self.default_modules_path)
         return [
@@ -52,7 +65,11 @@ class ModuleCommand:
         Get the local modules in a pipeline
         """
         local_module_dir = Path(self.dir, "modules", "local")
-        return [str(path.relative_to(local_module_dir)) for path in local_module_dir.iterdir() if path.suffix == ".nf"]
+        return [
+            str(path.relative_to(local_module_dir))
+            for path in local_module_dir.iterdir()
+            if path.suffix == ".nf"
+        ]
 
     def has_valid_directory(self):
         """Check that we were given a pipeline or clone of nf-core/modules"""
@@ -64,7 +81,9 @@ class ModuleCommand:
         main_nf = os.path.join(self.dir, "main.nf")
         nf_config = os.path.join(self.dir, "nextflow.config")
         if not os.path.exists(main_nf) and not os.path.exists(nf_config):
-            raise UserWarning(f"Could not find a 'main.nf' or 'nextflow.config' file in '{self.dir}'")
+            raise UserWarning(
+                f"Could not find a 'main.nf' or 'nextflow.config' file in '{self.dir}'"
+            )
         return True
 
     def has_modules_file(self):
@@ -105,13 +124,19 @@ class ModuleCommand:
         """
         repo_dir = Path(self.dir, "modules", install_dir)
         if not repo_dir.exists():
-            raise LookupError(f"Nothing installed from {install_dir} in pipeline")
+            raise LookupError(
+                f"Nothing installed from {install_dir} in pipeline"
+            )
 
         return [
-            str(Path(dir_path).relative_to(repo_dir)) for dir_path, _, files in os.walk(repo_dir) if "main.nf" in files
+            str(Path(dir_path).relative_to(repo_dir))
+            for dir_path, _, files in os.walk(repo_dir)
+            if "main.nf" in files
         ]
 
-    def install_module_files(self, module_name, module_version, modules_repo, install_dir):
+    def install_module_files(
+        self, module_name, module_version, modules_repo, install_dir
+    ):
         """
         Installs a module into the given directory
 
@@ -124,7 +149,9 @@ class ModuleCommand:
         Returns:
             (bool): Whether the operation was successful of not
         """
-        return modules_repo.install_module(module_name, install_dir, module_version)
+        return modules_repo.install_module(
+            module_name, install_dir, module_version
+        )
 
     def load_lint_config(self):
         """Parse a pipeline lint config file.
@@ -151,37 +178,55 @@ class ModuleCommand:
     def check_modules_structure(self):
         """
         Check that the structure of the modules directory in a pipeline is the correct one:
-            modules/nf-core/TOOL/SUBTOOL
+            modules/<subdirectory>/TOOL/SUBTOOL
 
         Prior to nf-core/tools release 2.6 the directory structure had an additional level of nesting:
-            modules/nf-core/modules/TOOL/SUBTOOL
+            modules/<subdirectory>/modules/TOOL/SUBTOOL
         """
         if self.repo_type == "pipeline":
             wrong_location_modules = []
             for directory, _, files in os.walk(Path(self.dir, "modules")):
                 if "main.nf" in files:
-                    module_path = Path(directory).relative_to(Path(self.dir, "modules"))
+                    module_path = Path(directory).relative_to(
+                        Path(self.dir, "modules")
+                    )
                     parts = module_path.parts
                     # Check that there are modules installed directly under the 'modules' directory
                     if parts[1] == "modules":
                         wrong_location_modules.append(module_path)
             # If there are modules installed in the wrong location
             if len(wrong_location_modules) > 0:
-                log.info("The modules folder structure is outdated. Reinstalling modules.")
+                log.info(
+                    "The modules folder structure is outdated. Reinstalling modules."
+                )
                 # Remove the local copy of the modules repository
                 log.info(f"Removing '{self.modules_repo.local_repo_dir}'")
                 shutil.rmtree(self.modules_repo.local_repo_dir)
                 self.modules_repo.setup_local_repo(
-                    self.modules_repo.remote_url, self.modules_repo.branch, self.subdirectory, self.hide_progress
+                    self.modules_repo.remote_url,
+                    self.modules_repo.branch,
+                    self.subdirectory,
+                    self.hide_progress,
                 )
                 # Move wrong modules to the right directory
                 for module in wrong_location_modules:
                     modules_dir = Path("modules").resolve()
-                    correct_dir = Path(modules_dir, self.modules_repo.repo_path, Path(*module.parts[2:]))
+                    correct_dir = Path(
+                        modules_dir,
+                        self.modules_repo.repo_path,
+                        Path(*module.parts[2:]),
+                    )
                     wrong_dir = Path(modules_dir, module)
                     shutil.move(wrong_dir, correct_dir)
                     log.info(f"Moved {wrong_dir} to {correct_dir}.")
-                shutil.rmtree(Path(self.dir, "modules", self.modules_repo.repo_path, "modules"))
+                shutil.rmtree(
+                    Path(
+                        self.dir,
+                        "modules",
+                        self.modules_repo.repo_path,
+                        "modules",
+                    )
+                )
                 # Regenerate modules.json file
                 modules_json = ModulesJson(self.dir)
                 modules_json.check_up_to_date()

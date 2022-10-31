@@ -1340,7 +1340,13 @@ def test_module(ctx, tool, no_prompts, pytest_args):
     """
     try:
         meta_builder = nf_core.modules.ModulesTest(
-            tool, no_prompts, pytest_args
+            tool,
+            no_prompts,
+            pytest_args,
+            ctx.obj["modules_repo_url"],
+            ctx.obj["modules_repo_branch"],
+            ctx.obj["modules_repo_no_pull"],
+            ctx.obj["modules_subdirectory"],
         )
         meta_builder.run()
     except (UserWarning, LookupError) as e:

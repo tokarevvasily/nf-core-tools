@@ -10,7 +10,7 @@ from nf_core.modules.modules_differ import ModulesDiffer
 
 def module_changes(module_lint_object, module):
     """
-    Checks whether installed nf-core modules have changed compared to the
+    Checks whether installed <remote_url> modules have changed compared to the
     original repository
 
     Downloads the ``main.nf`` and ``meta.yml`` files for every module
@@ -29,7 +29,11 @@ def module_changes(module_lint_object, module):
         shutil.copytree(module.module_dir, tempdir)
         try:
             new_lines = ModulesDiffer.try_apply_patch(
-                module.module_name, module_lint_object.modules_repo.repo_path, module.patch_path, tempdir, reverse=True
+                module.module_name,
+                module_lint_object.modules_repo.repo_path,
+                module.patch_path,
+                tempdir,
+                reverse=True,
             )
             for file, lines in new_lines.items():
                 with open(tempdir / file, "w") as fh:

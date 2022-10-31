@@ -85,12 +85,12 @@ class ModuleCreate(ModuleCommand):
           OR
         '<directory>/modules/local/tool_subtool.nf'
 
-        If <directory> is a clone of nf-core/modules, it creates or modifies the following files:
+        If <directory> is a clone of <remote_repo>, it creates or modifies the following files:
 
-        modules/modules/nf-core/tool/subtool/
+        <remote_repo>/modules/<subdirectory>/tool/subtool/
             * main.nf
             * meta.yml
-        modules/tests/modules/nf-core/tool/subtool/
+        <remote_repo>/tests/modules/<subdirectory>/tool/subtool/
             * main.nf
             * test.yml
             * nextflow.config
@@ -103,7 +103,7 @@ class ModuleCreate(ModuleCommand):
         # Check modules directory structure
         self.check_modules_structure()
 
-        # Check whether the given directory is a nf-core pipeline or a clone of nf-core/modules
+        # Check whether the given directory is a nf-core pipeline or a clone of <remote_url>
         try:
             (
                 self.directory,

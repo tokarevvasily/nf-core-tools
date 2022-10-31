@@ -56,12 +56,19 @@ class ModulesTest(ModuleCommand):
         remote_url=None,
         branch=None,
         no_pull=False,
+        subdirectory="nf-core",
     ):
         self.module_name = module_name
         self.no_prompts = no_prompts
         self.pytest_args = pytest_args
+        self.subdirectory = subdirectory
 
-        super().__init__(".", remote_url, branch, no_pull)
+        # Convenience variable
+        self.fullname = (
+            nf_core.modules.module_utils.repo_full_name_from_remote(remote_url)
+        )
+
+        super().__init__(".", remote_url, branch, no_pull, subdirectory)
 
     def run(self):
         """Run test steps"""
@@ -85,7 +92,9 @@ class ModulesTest(ModuleCommand):
         else:
             modules_json = ModulesJson(self.dir)
             modules_json.check_up_to_date()
-            installed_modules = modules_json.get_all_modules().get(self.modules_repo.remote_url)
+            installed_modules = modules_json.get_all_modules().get(
+                self.modules_repo.remote_url
+            )
 
         # Get the tool name if not specified
         if self.module_name is None:
@@ -96,7 +105,7 @@ class ModulesTest(ModuleCommand):
             if not installed_modules:
                 raise UserWarning(
                     f"No installed modules were found from '{self.modules_repo.remote_url}'.\n"
-                    f"Are you running the tests inside the nf-core/modules main directory?\n"
+                    f"Are you running the tests inside the {self.fullname} main directory?\n"
                     f"Otherwise, make sure that the directory structure is modules/TOOL/SUBTOOL/ and tests/modules/TOOLS/SUBTOOL/"
                 )
             self.module_name = questionary.autocomplete(
@@ -110,8 +119,8 @@ class ModulesTest(ModuleCommand):
 
     def _validate_folder_structure(self):
         """Validate that the modules follow the correct folder structure to run the tests:
-        - modules/nf-core/TOOL/SUBTOOL/
-        - tests/modules/nf-core/TOOL/SUBTOOL/
+        - modules/<subdirectory>/TOOL/SUBTOOL/
+        - tests/modules/subdirectory/TOOL/SUBTOOL/
 
         """
         module_path = Path(self.default_modules_path) / self.module_name
@@ -119,12 +128,12 @@ class ModulesTest(ModuleCommand):
 
         if not (self.dir / module_path).is_dir():
             raise UserWarning(
-                f"Cannot find directory '{module_path}'. Should be TOOL/SUBTOOL or TOOL. Are you running the tests inside the nf-core/modules main directory?"
+                f"Cannot find directory '{module_path}'. Should be TOOL/SUBTOOL or TOOL. Are you running the tests inside the {self.fullname} main directory?"
             )
         if not (self.dir / test_path).is_dir():
             raise UserWarning(
                 f"Cannot find directory '{test_path}'. Should be TOOL/SUBTOOL or TOOL. "
-                "Are you running the tests inside the nf-core/modules main directory? "
+                f"Are you running the tests inside the {self.fullname} main directory? "
                 "Do you have tests for the specified module?"
             )
 
@@ -147,10 +156,14 @@ class ModulesTest(ModuleCommand):
                     "message": "Choose software profile",
                     "choices": ["Docker", "Singularity", "Conda"],
                 }
-                answer = questionary.unsafe_prompt([question], style=nf_core.utils.nfcore_question_style)
+                answer = questionary.unsafe_prompt(
+                    [question], style=nf_core.utils.nfcore_question_style
+                )
                 profile = answer["profile"].lower()
                 os.environ["PROFILE"] = profile
-                log.info(f"Setting environment variable '$PROFILE' to '{profile}'")
+                log.info(
+                    f"Setting environment variable '$PROFILE' to '{profile}'"
+                )
 
     def _check_profile(self):
         """Check if profile is available"""
@@ -159,7 +172,9 @@ class ModulesTest(ModuleCommand):
         valid_nextflow_profiles = ["docker", "singularity", "conda"]
         if profile in valid_nextflow_profiles:
             if not which(profile):
-                raise UserWarning(f"Command '{profile}' not found - is it installed?")
+                raise UserWarning(
+                    f"Command '{profile}' not found - is it installed?"
+                )
         else:
             raise UserWarning(
                 f"The PROFILE '{profile}' set in the shell environment is not valid.\n"
@@ -173,7 +188,13 @@ class ModulesTest(ModuleCommand):
         console.rule(self.module_name, style="black")
 
         # Set pytest arguments
-        command_args = ["--tag", f"{self.module_name}", "--symlink", "--keep-workflow-wd", "--git-aware"]
+        command_args = [
+            "--tag",
+            f"{self.module_name}",
+            "--symlink",
+            "--keep-workflow-wd",
+            "--git-aware",
+        ]
         command_args += self.pytest_args
 
         # Run pytest

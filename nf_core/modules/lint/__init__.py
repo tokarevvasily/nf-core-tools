@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Code for linting modules in the nf-core/modules repository and
+Code for linting modules in the <remote_url> repository and
 in nf-core pipelines
 
 Command:
@@ -50,7 +50,7 @@ class LintResult(object):
 
 class ModuleLint(ModuleCommand):
     """
-    An object for linting modules either in a clone of the 'nf-core/modules'
+    An object for linting modules either in a clone of the '<remote_url>'
     repository or in any nf-core pipeline directory
     """
 
@@ -178,10 +178,10 @@ class ModuleLint(ModuleCommand):
         Lint all or one specific module
 
         First gets a list of all local modules (in modules/local/process) and all modules
-        installed from nf-core (in modules/nf-core)
+        installed from nf-core (in modules/nf-core), or other <remote_url> (in modules/<subdirectory>)
 
-        For all nf-core modules, the correct file structure is assured and important
-        file content is verified. If directory subject to linting is a clone of 'nf-core/modules',
+        For all <remote_url> modules, the correct file structure is assured and important
+        file content is verified. If directory subject to linting is a clone of '<remote_url>',
         the files necessary for testing the modules are also inspected.
 
         For all local modules, the '.nf' file is checked for some important flags, and warnings
@@ -262,7 +262,7 @@ class ModuleLint(ModuleCommand):
                 local_modules, local=True, fix_version=fix_version
             )
 
-        # Lint nf-core modules
+        # Lint <remote_url> modules
         if len(remote_modules) > 0:
             self.lint_modules(
                 remote_modules, local=False, fix_version=fix_version
@@ -344,7 +344,7 @@ class ModuleLint(ModuleCommand):
         - meta.yml
         And verify that their content conform to the nf-core standards.
 
-        If the linting is run for modules in the central nf-core/modules repo
+        If the linting is run for modules in the central <remote_url> repo
         (repo_type==modules), files that are relevant for module testing are
         also examined
         """

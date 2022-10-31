@@ -76,9 +76,9 @@ def get_installed_modules(dir, repo_type="modules", subdirectory="nf-core"):
     Make a list of all modules installed in this repository
 
     Returns a tuple of two lists, one for local modules
-    and one for nf-core modules. The local modules are represented
+    and one for <remote_url> modules. The local modules are represented
     as direct filepaths to the module '.nf' file.
-    Nf-core module are returned as file paths to the module directories.
+    <remote_url> module are returned as file paths to the module directories.
     In case the module contains several tools, one path to each tool directory
     is returned.
 
@@ -101,7 +101,7 @@ def get_installed_modules(dir, repo_type="modules", subdirectory="nf-core"):
                 [x for x in local_modules if x.endswith(".nf")]
             )
 
-    # Get nf-core modules
+    # Get <remote_url> modules
     if os.path.exists(nfcore_modules_dir):
         for m in sorted(
             [m for m in os.listdir(nfcore_modules_dir) if not m == "lib"]
@@ -169,10 +169,10 @@ def get_repo_type(dir, repo_type=None, use_prompt=True):
             "Can't find a '.nf-core.yml' file that defines 'repository_type'"
         )
         repo_type = questionary.select(
-            "Is this repository an nf-core pipeline or a fork of nf-core/modules?",
+            f"Is this repository a pipeline or a fork/clone of a remote modules repo?",
             choices=[
                 {"name": "Pipeline", "value": "pipeline"},
-                {"name": "nf-core/modules", "value": "modules"},
+                {"name": f"Modules repo", "value": "modules"},
             ],
             style=nf_core.utils.nfcore_question_style,
         ).unsafe_ask()

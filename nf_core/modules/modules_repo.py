@@ -246,7 +246,9 @@ class ModulesRepo(object):
             ):
                 log.info(f"Removing '{self.local_repo_dir}'")
                 shutil.rmtree(self.local_repo_dir)
-                self.setup_local_repo(remote, branch, subdirectory, hide_progress)
+                self.setup_local_repo(
+                    remote, branch, subdirectory, hide_progress
+                )
             else:
                 raise LookupError(
                     "Exiting due to error with local modules git repo"
@@ -413,7 +415,7 @@ class ModulesRepo(object):
     ):
         """
         Fetches the commit history the of requested module since a given date. The default value is
-        not arbitrary - it is the last time the structure of the nf-core/modules repository was had an
+        not arbitrary - it is the last time the structure of the nf-core/modules repository had an
         update breaking backwards compatibility.
         Args:
             module_name (str): Name of module

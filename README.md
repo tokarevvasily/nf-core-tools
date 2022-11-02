@@ -620,16 +620,23 @@ The modules supercommand comes with two flags for specifying a custom remote:
 
 - `--git-remote <git remote url>`: Specify the repository from which the modules should be fetched as a git URL. Defaults to the github repository of `nf-core/modules`.
 - `--branch <branch name>`: Specify the branch from which the modules should be fetched. Defaults to the default branch of your repository.
+- `--subdirectory <subdirectory name>`: Specify the subdirectory where modules should be fetched from. Defaults to `nf-core`.
 
 For example, if you want to install the `fastqc` module from the repository `nf-core/modules-test` hosted at `gitlab.com`, you can use the following command:
 
 ```terminal
 nf-core modules --git-remote git@gitlab.com:nf-core/modules-test.git install fastqc
 ```
+  
+Note that a custom remote must follow a similar directory structure to that of `nf-core/modules` for the `nf-core modules` commands to work properly.
 
-Note that a custom remote must follow a similar directory structure to that of `nf-core/moduleś` for the `nf-core modules` commands to work properly.
-
-The modules commands will during initalisation try to pull changes from the remote repositories. If you want to disable this, for example
+If a repo does not follow `modules/<repo base name> (i.e., modules/nf-core)` structure, but instead has `modules/my-subdirectory`, the following command can be used:
+  
+```terminal
+nf-core modules --git-remote https://github.com/REPO-BASE-NAME/REPO.git --subdirectory my-subdirectory install fastqc
+```
+  
+During initialization modules commands will try to pull changes from the remote repositories. If you want to disable this, for example
 due to performance reason or if you want to run the commands offline, you can use the flag `--no-pull`. Note however that the commands will
 still need to clone repositories that have previously not been used.
 
